@@ -1,6 +1,6 @@
 @echo off
 echo ================================================
-echo GitHub Copilot API Server with Usage Viewer
+echo GitHub Copilot API Server
 echo Start Copilot API Server at %~dp0
 echo ================================================
 echo.

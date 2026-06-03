@@ -127,9 +127,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
     }
   }
 
-  consola.box(
-    `🌐 Usage Viewer: https://ericc-ch.github.io/copilot-api?endpoint=${serverUrl}/usage`,
-  )
+  consola.box(`Server running at ${serverUrl}`)
 
   const idleTimeout =
     process.env.IDLE_TIMEOUT ?

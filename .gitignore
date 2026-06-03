@@ -12,3 +12,7 @@ node_modules/
 
 # build output
 dist/
+
+# deploy secrets (Cloudflare Tunnel token 等)
+deploy/.env
+deploy/logs/
