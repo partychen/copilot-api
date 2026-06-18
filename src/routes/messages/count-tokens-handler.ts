@@ -2,6 +2,7 @@ import type { Context } from "hono"
 
 import consola from "consola"
 
+import { applyModelMapping, getModelMappings } from "~/lib/model-mapping"
 import { state } from "~/lib/state"
 import { getTokenCount } from "~/lib/tokenizer"
 
@@ -15,7 +16,19 @@ export async function handleCountTokens(c: Context) {
   try {
     const anthropicBeta = c.req.header("anthropic-beta")
 
-    const anthropicPayload = await c.req.json<AnthropicMessagesPayload>()
+    let anthropicPayload = await c.req.json<AnthropicMessagesPayload>()
+
+    const mappings = getModelMappings()
+    if (mappings.size > 0) {
+      const { model, mapped } = applyModelMapping(
+        anthropicPayload.model,
+        mappings,
+        state.verbose,
+      )
+      if (mapped) {
+        anthropicPayload = { ...anthropicPayload, model }
+      }
+    }
 
     const openAIPayload = translateToOpenAI(anthropicPayload)
 
