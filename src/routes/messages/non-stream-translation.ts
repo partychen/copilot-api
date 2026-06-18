@@ -69,11 +69,15 @@ function translateAnthropicMessagesToOpenAI(
   )
 
   // Some upstream models (e.g. claude-opus-4.8 via GitHub Copilot) reject
-  // requests whose final message is not a user message ("assistant message
-  // prefill"). A trailing tool result translates to a `tool` role message, so
-  // append a placeholder user message to keep the conversation user-terminated.
+  // requests that end with an assistant message ("assistant message prefill"):
+  //   "This model does not support assistant message prefill. The conversation
+  //    must end with a user message."
+  // A `tool` role message is a VALID terminator (verified: tool-terminated
+  // requests return 200), so only patch the genuine assistant-prefill case.
+  // Patching tool-terminated turns would inject a spurious "Continue." into
+  // every agent tool round.
   const lastMessage = otherMessages.at(-1)
-  if (lastMessage && lastMessage.role !== "user") {
+  if (lastMessage && lastMessage.role === "assistant") {
     otherMessages.push({ role: "user", content: "Continue." })
   }
 

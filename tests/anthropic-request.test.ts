@@ -156,6 +156,73 @@ describe("Anthropic to OpenAI translation logic", () => {
     expect(assistantMessage?.content).toContain("2+2 equals 4.")
   })
 
+  test("should NOT append 'Continue.' when conversation ends in a tool_result", () => {
+    // Agent loop turn: the final user message carries only a tool_result, which
+    // translates to a `tool` role message. That is a valid terminator for
+    // Copilot (returns 200), so the proxy must not inject a placeholder user
+    // turn — doing so would forge a "Continue." on every tool round.
+    const anthropicPayload: AnthropicMessagesPayload = {
+      model: "claude-opus-4-8",
+      messages: [
+        { role: "user", content: "What's the weather?" },
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "Let me check the weather for you." },
+            {
+              type: "tool_use",
+              id: "call_123",
+              name: "get_weather",
+              input: { location: "New York" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "call_123",
+              content: "Sunny, 75F",
+            },
+          ],
+        },
+      ],
+      max_tokens: 100,
+    }
+    const openAIPayload = translateToOpenAI(anthropicPayload)
+    expect(isValidChatCompletionRequest(openAIPayload)).toBe(true)
+
+    const lastMessage = openAIPayload.messages.at(-1)
+    expect(lastMessage?.role).toBe("tool")
+    // No forged user turn should have been appended.
+    expect(
+      openAIPayload.messages.some(
+        (m) => m.role === "user" && m.content === "Continue.",
+      ),
+    ).toBe(false)
+  })
+
+  test("should append 'Continue.' when conversation ends in an assistant message", () => {
+    // Genuine assistant prefill: Copilot's claude-opus-4.8 rejects this with a
+    // 400 unless the conversation ends with a user message. The proxy appends a
+    // placeholder user turn to keep it valid.
+    const anthropicPayload: AnthropicMessagesPayload = {
+      model: "claude-opus-4-8",
+      messages: [
+        { role: "user", content: "Complete this sentence with one word." },
+        { role: "assistant", content: "The capital of France is" },
+      ],
+      max_tokens: 100,
+    }
+    const openAIPayload = translateToOpenAI(anthropicPayload)
+    expect(isValidChatCompletionRequest(openAIPayload)).toBe(true)
+
+    const lastMessage = openAIPayload.messages.at(-1)
+    expect(lastMessage?.role).toBe("user")
+    expect(lastMessage?.content).toBe("Continue.")
+  })
+
   test("should handle thinking blocks with tool calls", () => {
     const anthropicPayload: AnthropicMessagesPayload = {
       model: "claude-3-5-sonnet-20241022",
